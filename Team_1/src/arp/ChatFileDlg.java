@@ -76,6 +76,7 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 	private JTable Table_ARP_Cache;
 
 	InetAddress myIPAddress = null;
+	private byte[] targetIPAddress = new byte[4];
 	private JTable Table_PARP_Entry;
 
 	public static void main(String[] args) {
@@ -88,9 +89,50 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		m_LayerMgr.AddLayer(new FileAppLayer("File"));
 		m_LayerMgr.AddLayer(new ChatFileDlg("GUI"));
 
-		m_LayerMgr.ConnectLayers(" NI ( *Ethernet ( *IP ( *TCP ( *Chat ( *GUI ) *File ) -ARP ) *ARP ) )");
+		m_LayerMgr.ConnectLayers(" NI ( *Ethernet ( *IP ( *TCP ( *Chat ( *GUI ) *File ( *GUI ) ) -ARP ) *ARP ) )");
+//		m_LayerMgr.GetLayer("GUI")
+	}
+	
+	//	For the purpose of table edit.
+	DefaultTableModel dtm_ARP;
+	DefaultTableModel dtm_PARP;
+	String myMac;
+	byte[] myMacByte;
+	
+	public void setValueOfDTM_ARP(Object aValue, int row, int col) {
+		this.dtm_ARP.setValueAt(aValue, row, col);
+	}
+	
+	public String getValueOfDTM_ARP(int row, int col) {
+		return (String) this.dtm_ARP.getValueAt(row, col);
+	}
+	
+	public void setValueOfDTM_PARP(Object aValue, int row, int col) {
+		this.dtm_PARP.setValueAt(aValue, row, col);
 	}
 
+	public String getValueOfDTM_PARP(int row, int col) {
+		return (String) this.dtm_PARP.getValueAt(row, col);
+	}
+
+	
+	public int getRowCountOfDTM_ARP() {
+		return this.dtm_ARP.getRowCount();
+	}
+	
+	public int getColCountOfDTM_ARP() {
+		return this.dtm_ARP.getColumnCount();
+	}
+	
+	public int getRowCountOfDTM_PARP() {
+		return this.dtm_PARP.getRowCount();
+	}
+	
+	public int getColCountOfDTM_PARP() {
+		return this.dtm_PARP.getColumnCount();
+	}
+	
+	
 	public ChatFileDlg(String pName) {
 
 		pLayerName = pName;
@@ -110,8 +152,8 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		String header_ARP_Cache[] = { "IP주소", "MAC주소", "완료 여부" };
 		String contents_ARP_Cache[][] = {
 
-//				{"123.123.123.123", "AA-BB-CC-11-22-33", "complete"},
-//				{"234", "zxc", "n"}
+				{"123.123.123.123", "AA-BB-CC-11-22-33", "complete"},
+				{"234", "zxc", "n"}
 		};
 
 		String header_PARP_Entry[] = { "Device", "IP_주소", "MAC_주소" };
@@ -121,8 +163,7 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 //				{"234", "zxc", "n"}
 		};
 
-		DefaultTableModel dtm_ARP = new DefaultTableModel(contents_ARP_Cache, header_ARP_Cache);
-
+		dtm_ARP = new DefaultTableModel(contents_ARP_Cache, header_ARP_Cache);
 		Table_ARP_Cache = new JTable(dtm_ARP);
 		Table_ARP_Cache.setBounds(597, 66, 314, 136);
 		JScrollPane scrollpane_ARP = new JScrollPane(Table_ARP_Cache);
@@ -130,8 +171,12 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		scrollpane_ARP.setLocation(580, 50);
 //		pane.add(table);
 		pane.add(scrollpane_ARP);
-
-		DefaultTableModel dtm_PARP = new DefaultTableModel(contents_PARP_Entry, header_PARP_Entry);
+		
+		
+//		dtm_ARP.setValueAt("HI", 0, 0);
+		
+		
+		dtm_PARP = new DefaultTableModel(contents_PARP_Entry, header_PARP_Entry);
 
 		Table_PARP_Entry = new JTable(dtm_PARP);
 		Table_PARP_Entry.setBounds(958, 38, 350, 226);
@@ -203,15 +248,19 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 					String src = srcMacAddress.getText();
 					String dst = dstMacAddress.getText();
 
+					myMac = src;
+					
 					String[] byte_src = src.split("-");
 					for (int i = 0; i < 6; i++) {
 						srcAddress[i] = (byte) Integer.parseInt(byte_src[i], 16);
 					}
+					System.arraycopy(srcAddress, 0, myMacByte, 0, 6);
 
 					String[] byte_dst = dst.split("\\."); // IP address입력을 위한 split
 					for (int i = 0; i < 4; i++) {
 						dstAddress[i] = (byte) Integer.parseInt(byte_dst[i], 16);
 					}
+					System.arraycopy(dstAddress, 0, targetIPAddress, 0, 4);
 
 //					((EthernetLayer) m_LayerMgr.GetLayer("Ethernet")).SetEnetSrcAddress(srcAddress);
 //					((EthernetLayer) m_LayerMgr.GetLayer("Ethernet")).SetEnetDstAddress(dstAddress);
@@ -274,6 +323,8 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 					byte[] bytes = input.getBytes();
 					m_LayerMgr.GetLayer("Chat").Send(bytes, bytes.length);
 					// p_UnderLayer.Send(bytes, bytes.length);
+					
+					ChattingWrite.setText("");
 				} else {
 					JOptionPane.showMessageDialog(null, "주소 설정 오류");
 				}
@@ -600,4 +651,20 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 	public void setMyIPAddress(InetAddress myIPAddress) {
 		this.myIPAddress = myIPAddress;
 	}
+	// myIp to byte array
+	public byte[] InetToByte(InetAddress address){
+		return address.getAddress();
+	}
+
+	public byte[] getTargetIPAddress() {
+		// TODO Auto-generated method stub
+		return targetIPAddress;
+	}
+
+	public void setTargetIPAddress(byte[] targetIPAddress) {
+		this.targetIPAddress = targetIPAddress;
+	}	
+	
+
+	
 }
