@@ -114,7 +114,6 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 	public String getValueOfDTM_PARP(int row, int col) {
 		return (String) this.dtm_PARP.getValueAt(row, col);
 	}
-
 	
 	public int getRowCountOfDTM_ARP() {
 		return this.dtm_ARP.getRowCount();
@@ -134,6 +133,25 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 	
 	
 	public ChatFileDlg(String pName) {
+		
+		////주소 초기화~~~~~~
+		byte[] temp = null;
+		try {
+			temp = ((NILayer) m_LayerMgr.GetLayer("NI")).GetAdapterObject(0).getHardwareAddress();
+		} catch (IOException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
+		
+		((ARPLayer) m_LayerMgr.GetLayer("ARP")).SetSrcMac(temp);
+		try {
+			((ARPLayer) m_LayerMgr.GetLayer("ARP")).SetSrcIp(InetToByte(InetAddress.getLocalHost()));
+		} catch (UnknownHostException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		////주소 초기화~~~~~~
+		
 
 		pLayerName = pName;
 		setTitle("1조 컴퓨터네트워크 ARP 팀프로젝트");

@@ -42,8 +42,8 @@ public class ARPLayer implements BaseLayer {
 		byte[] arp_dstIP;
 
 		public ARP_Header() {
-			this.arp_mac_type = new byte[2];
-			this.arp_ip_type = new byte[2];
+			this.arp_mac_type = new byte[] { 0x00, 0x01 };
+			this.arp_ip_type = new byte[] { 0x08, 0x00 };
 			this.arp_mac_addr_len = 0x06;
 			this.arp_ip_addr_len = 0x04;
 			this.arp_opcode = new byte[2];
@@ -59,6 +59,8 @@ public class ARPLayer implements BaseLayer {
 			Arrays.fill(arp_dstIP, (byte) 0x00);
 		}
 	}
+	
+	ARP_Header m_sHeader = new ARP_Header();
 
 	public String getIP_With_Dots(byte[] input) {
 		String srcIP_With_Dots = "";
@@ -162,7 +164,7 @@ public class ARPLayer implements BaseLayer {
 
 			// 0x02 : ARP Reply => ARP를 받은 후 답장을 위한 부분
 			//	encapsulation
-			byte[] response_arp = ObjToByte_Send(response_header, (byte) 0x02);
+			byte[] response_arp = ObjToByte_Send(response_header, input, (byte) 0x02);
 			
 			//	Send ARP Reply
 			return this.GetUnderLayer().Send(response_arp, response_arp.length);
@@ -183,8 +185,8 @@ public class ARPLayer implements BaseLayer {
 		return false;
 	}
 
-	public byte[] ObjToByte_Send(ARP_Header Header, byte opcode) {
-		byte[] buf = new byte[28]; // ARP Frame
+	public byte[] ObjToByte_Send(ARP_Header Header, byte[] input, byte opcode) {//검토
+		byte[] buf = new byte[input.length + 28]; // ARP Frame
 		byte[] src_mac = Header.arp_srcMAC;
 		byte[] src_ip = Header.arp_srcIP;
 		byte[] dst_mac = Header.arp_dstMAC;
@@ -202,8 +204,48 @@ public class ARPLayer implements BaseLayer {
 		System.arraycopy(src_ip, 0, buf, 14, 4);// 4바이트
 		System.arraycopy(dst_mac, 0, buf, 18, 6);// 6바이트
 		System.arraycopy(dst_ip, 0, buf, 24, 4);// 4바이트
-
+		System.arraycopy(input, 0, buf, 28, input.length);
+		
 		return buf;
+	}
+	
+	public boolean Send(byte[] input, int length) {
+		byte[] dstIp = new byte[] { input[16], input[17], input[18], input[19] };
+		byte[] srcIp = new byte[] { input[12], input[13], input[14], input[15] };
+	
+		SetSrcIp(srcIp);
+		if (dstIp.equals(srcIp)) {//GARP	
+			// srcMac = dlg.srcMac(바뀐 맥 주소)
+			SetDstIp(srcIp);
+			
+		} else {//ARP,PARP		
+			// srcMac = dlg.srcMac(본인 맥 주소)
+			SetDstIp(dstIp);
+		}
+		
+		byte[] temp = ObjToByte_Send(m_sHeader, input, (byte) 0x01);
+		
+		return this.GetUnderLayer().Send(temp, length + 28);
+	}
+
+	public void SetOpcode(byte[] opcode) {
+		m_sHeader.arp_opcode = opcode;
+	}
+
+	public void SetSrcIp(byte[] srcIp) {
+		m_sHeader.arp_srcIP = srcIp;
+	}
+
+	public void SetDstIp(byte[] dstIp) {
+		m_sHeader.arp_dstIP = dstIp;
+	}
+
+	public void SetSrcMac(byte[] srcMac) {
+		m_sHeader.arp_srcMAC = srcMac;
+	}
+
+	public void SetDstMac(byte[] dstMac) {
+		m_sHeader.arp_dstMAC = dstMac;
 	}
 
 	@Override
@@ -249,6 +291,18 @@ public class ARPLayer implements BaseLayer {
 	public static boolean containMacAddress(byte[] addr) {
 		// TODO Auto-generated method stub
 		return false;
+	}
+	
+	private byte[] intToByte2(int value) {
+		byte[] temp = new byte[2];
+		temp[0] |= (byte) ((value & 0xFF00) >> 8);
+		temp[1] |= (byte) (value & 0xFF);
+
+		return temp;
+	}
+
+	private int byte2ToInt(byte value1, byte value2) {
+		return (int) ((value1 << 8) | (value2));
 	}
 
 }
