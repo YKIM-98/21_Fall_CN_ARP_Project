@@ -1,6 +1,7 @@
 package arp;
 
 import arp.BaseLayer;
+
 import java.util.ArrayList;
 
 
@@ -11,7 +12,7 @@ public class IPLayer implements BaseLayer{
     public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();    
 	public String pLayerName = null;
 	private _IP_Header ip_header = new _IP_Header();
-	
+	ChatFileDlg dlg;
 	
 	// Layer 이름 설정
 	public IPLayer(String pName){
@@ -23,12 +24,27 @@ public class IPLayer implements BaseLayer{
 		int resultLength = input.length;
 	    this.ip_header.ip_dstaddr.addr = new byte[4]; //헤더 주소 초기화
 		this.ip_header.ip_srcaddr.addr = new byte[4];
-		byte [] my_ip = ((ChatFileDlg) this.GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0)).getMyIPAddress().getAddress();
+		dlg = ((ChatFileDlg) this.GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0));
+		
+		byte [] my_ip = dlg.getMyIPAddress().getAddress();
 		SetIpSrcAddress(my_ip);
 		if (length == -2) { // GARP
 		    SetIpDstAddress(my_ip);
 		} else { // ARP or Data
-		    SetIpDstAddress(((ChatFileDlg) this.GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0)).getTargetIPAddress());
+			String InputARPIP = dlg.getInputARPIP();
+			byte[] dstAddressToByte = new byte[4];
+			String[] byte_dst = InputARPIP.split("\\."); // IP address입력을 위한 split
+			for (int i = 0; i < 4; i++) {
+				dstAddressToByte[i] = (byte) Integer.parseInt(byte_dst[i], 16);
+			}
+			
+			if (((dstAddressToByte[0] == input[24])&&(dstAddressToByte[1] == input[25])
+					&& (dstAddressToByte[2] == input[26]) && (dstAddressToByte[3] == input[27]))){	//ARP
+				SetIpDstAddress(dstAddressToByte);
+			}
+			else{	//data
+				SetIpDstAddress(((ChatFileDlg) this.GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0)).getTargetIPAddress());
+			}
 		}
 		byte[] temp = ObjToByte20(this.ip_header, input, resultLength);
 		

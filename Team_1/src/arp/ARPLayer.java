@@ -7,7 +7,7 @@ public class ARPLayer implements BaseLayer {
 	public BaseLayer p_UnderLayer = null;
 	public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();
 	public String pLayerName = null;
-
+	ChatFileDlg dlg;
 	public ARPLayer(String name) {
 		this.pLayerName = name;
 	}
@@ -67,9 +67,9 @@ public class ARPLayer implements BaseLayer {
 
 		for (int i = 0; i < 4; i++) {
 			String temp = Integer.toHexString(0xff & input[i]);
-			srcIP_With_Dots.concat(temp);
+			srcIP_With_Dots += temp;
 			if (i != 3)
-				srcIP_With_Dots.concat(".");
+				srcIP_With_Dots += ".";
 		}
 
 		return srcIP_With_Dots;
@@ -80,9 +80,9 @@ public class ARPLayer implements BaseLayer {
 		String srcMacAddressWithHyphen = "";
 		for (int i = 0; i < 6; i++) {
 			hexNumber = Integer.toHexString(0xff & input[i]);
-			srcMacAddressWithHyphen.concat(hexNumber.toUpperCase());
+			srcMacAddressWithHyphen += hexNumber.toUpperCase();
 			if (i != 5)
-				srcMacAddressWithHyphen.concat("-");
+				srcMacAddressWithHyphen += "-";
 		}
 
 		return srcMacAddressWithHyphen;
@@ -97,7 +97,7 @@ public class ARPLayer implements BaseLayer {
 		byte[] src_ip_address = Arrays.copyOfRange(input, 14, 18);
 		byte[] dst_ip_address = Arrays.copyOfRange(input, 24, 28);
 		
-		ChatFileDlg dlg = ((ChatFileDlg) this.GetUnderLayer().GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0));
+		dlg = ((ChatFileDlg) this.GetUnderLayer().GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0));
 		byte[] myIP = dlg.getMyIPAddress().getAddress(); // No intelligence copy
 
 		if (opcode[0] == 0x00 && opcode[1] == 0x01) { // if ARP request
@@ -146,7 +146,7 @@ public class ARPLayer implements BaseLayer {
 
 //				dstIP랑 같은걸 찾아서 MAC을 반환
 				for (int i = 0; i < dlg.dtm_PARP.getRowCount(); ++i) {
-					if (dlg.getValueOfDTM_PARP(i, 0).equals(srcIP_With_Dots)) {
+					if (dlg.getValueOfDTM_PARP(i, 1).equals(srcIP_With_Dots)) {
 						returnMAC_Address = myMacAddressWithHyphen;
 						isInProxyEntry = true;
 						break;
@@ -172,10 +172,13 @@ public class ARPLayer implements BaseLayer {
 		}
 
 		else if (opcode[0] == 0x00 && opcode[1] == 0x02) {// 내가 보낸 ARP 요청이 돌아옴 (상대방이 주소를 넣어서 보냄)
+            this.setTimer(src_ip_address, 1200000);
+
 			// table에서 IP가 같은것의 MAC주소를 갱신
 			for (int i = 0; i < dlg.dtm_ARP.getRowCount(); ++i) {
 				if (dlg.getValueOfDTM_ARP(i, 0).equals(getIP_With_Dots(src_ip_address))) {
 					dlg.setValueOfDTM_ARP(getMAC_With_Hyphen(src_mac_address), i, 1);
+					dlg.setValueOfDTM_ARP("Complete", i, 2);
 					break;
 				}
 			}
@@ -185,7 +188,30 @@ public class ARPLayer implements BaseLayer {
 
 		return false;
 	}
+    private void setTimer(byte[] src_ip_address, long time) {
+        Timer timer = new Timer(byteArrayToString(src_ip_address));
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+//                arp_table.remove(Thread.currentThread().getName());
+//                ARPDlg.updateARPTableToGUI();
+            }
+        };
+        timer.schedule(task, time); // 10초로 지정
+    }
+    public static String byteArrayToString(byte[] addressByteArray) {
+        StringBuilder stringBuilder = new StringBuilder();
+        int lengthOfData = addressByteArray.length - 1;
+        for (int index = 0; index < lengthOfData; index++) {
+            stringBuilder.append(addressByteArray[index]).append(".");
+        }
 
+        stringBuilder.append(addressByteArray[lengthOfData]);
+
+        return stringBuilder.toString();
+    }
+
+    
 	public byte[] ObjToByte_Send(ARP_Header Header, byte[] input, byte opcode) {//검토
 		byte[] buf = new byte[input.length + 28]; // ARP Frame
 		byte[] src_mac = Header.arp_srcMAC;
@@ -214,10 +240,20 @@ public class ARPLayer implements BaseLayer {
 		byte[] dstIp = new byte[] { input[16], input[17], input[18], input[19] };
 		byte[] srcIp = new byte[] { input[12], input[13], input[14], input[15] };
 	
-		SetSrcIp(srcIp);
-		if (dstIp.equals(srcIp)) {//GARP	
+//		SetSrcIp(srcIp);
+//		if (dstIp.equals(srcIp)) {//GARP	
+		if (Arrays.equals(srcIp, dstIp)) {//GARP	
 			// srcMac = dlg.srcMac(바뀐 맥 주소)
-			SetDstIp(srcIp);
+			dlg = ((ChatFileDlg) this.GetUnderLayer().GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0));
+			byte[] bytes = new byte[6];
+
+			String[] macString = dlg.hwAddress.getText().split("\\-"); // Split the string array by "\\-"
+			for (int i = 0; i < 6; i++) {
+				bytes[i] = (byte) Integer.parseInt(macString[i], 16); // Cast the integers to byte
+//			System.out.println(bytes[i]);	//	for debugging
+			m_sHeader.arp_srcMAC = bytes;
+			}
+			SetDstIp(dstIp);
 			
 		} else {//ARP,PARP		
 			// srcMac = dlg.srcMac(본인 맥 주소)

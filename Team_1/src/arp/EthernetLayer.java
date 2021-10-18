@@ -1,5 +1,6 @@
 package arp;
 
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutput;
@@ -61,19 +62,22 @@ public class EthernetLayer implements BaseLayer {
 
 	public boolean Send(byte[] input, int length) {
 		int opCode = byte2ToInt(input[6], input[7]);
-		ChatFileDlg dlg = ((ChatFileDlg) this.GetUnderLayer().GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0));
+		ChatFileDlg dlg = ((ChatFileDlg) this.GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0));
 		
 				
 		if (opCode == 1) {// ARP request
 			SetEnetDstAddress(new byte[] { (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff});
 			SetEnetSrcAddress(new byte[] { input[8], input[9], input[10], input[11], input[12], input[13] });
 			SetEnetType(new byte[] { 0x08, 0x06 });
+			System.out.println(1);
 		} 
 		
 		else if (opCode == 2) {// ARP reply
 			SetEnetDstAddress(new byte[] { input[18], input[19], input[20], input[21], input[22], input[23] });
 			SetEnetSrcAddress(new byte[] { input[8], input[9], input[10], input[11], input[12], input[13] });
 			SetEnetType(new byte[] { 0x08, 0x06 });
+			System.out.println(2);
+
 		}
 
 		//	CHAT OF FILE
@@ -96,22 +100,60 @@ public class EthernetLayer implements BaseLayer {
 	}
 
 	// not complete
-	public boolean Receive(byte[] input) {
+	public synchronized boolean Receive(byte[] input) {
 	      int frameType = byte2ToInt(input[12], input[13]);
-	      if (isMyFrame(input) || !isMyAddr(input) || !isBroadcast(input)) {//Frame 폐기
-	         return false;
-	      }
-	      if (frameType == 0x0806) {//상위 ARP로 전송
-	         input = RemoveEthernetHeader(input, input.length);
-	         GetUpperLayer(1).Receive(input);
-	         return true;
-	      } else if (frameType == 0x0800) {//상위 IP로 전송
-	         input = RemoveEthernetHeader(input, input.length);
-	         GetUpperLayer(0).Receive(input);
-	         return true;
-	      }
-	      return true;
+	      if((isBroadcast(input) || isMyAddr(input)) && !isMyFrame(input)){
+	            if (frameType == 0x0806) {//상위 ARP로 전송
+	                input = RemoveEthernetHeader(input, input.length);
+	                GetUpperLayer(1).Receive(input);
+	                return true;
+	             } else if (frameType == 0x0800) {//상위 IP로 전송
+	                input = RemoveEthernetHeader(input, input.length);
+	                GetUpperLayer(0).Receive(input);
+	                return true;
+	             }
+	         }	      
+	      return false;
+//        if (!this.isMyAddress(input) && (this.isBoardData(input) || this.isMyConnectionData(input))
+//                && input[12] == 0x08) {//브로드이거나 나한테
+//	            if (frameType == 0x0806) {//상위 ARP로 전송
+//	            input = RemoveEthernetHeader(input, input.length);
+//	            GetUpperLayer(1).Receive(input);
+//	            return true;
+//	         } else if (frameType == 0x0800) {//상위 IP로 전송
+//	            input = RemoveEthernetHeader(input, input.length);
+//	            GetUpperLayer(0).Receive(input);
+//	            return true;
+//	         }
+//            }
+//            return false;
 	   }
+    private boolean checkTheFrameData(byte[] myAddressData, byte[] inputFrameData, int inputDataStartIndex) {// add prarmeter 사용,
+        for (int index = inputDataStartIndex; index < inputDataStartIndex + 6; index++) {
+            if (inputFrameData[index] != myAddressData[index - inputDataStartIndex]) {
+                return false;
+            }
+        }
+        return true;
+    }
+	
+//    private boolean isBoardData(byte[] inputFrameData) {
+//        byte[] boardData = new byte[6];
+//        for (int index = 0; index < 6; index++) {
+//            boardData[index] = (byte) 0xFF;
+//        }
+//        return this.checkTheFrameData(boardData, inputFrameData, 0);
+//    }// 브로드 케스트인지 check
+//
+//    private boolean isMyConnectionData(byte[] inputFrameData) {
+//        byte[] srcAddr = this.m_sHeader.enet_srcaddr.addr;
+//        return this.checkTheFrameData(srcAddr, inputFrameData, 0);
+//    }// 지금 받은 frame이 나랑 연결된 mac주소인지 판별
+//
+//    private boolean isMyAddress(byte[] inputFrameData) {
+//        byte[] srcAddr = this.m_sHeader.enet_srcaddr.addr;
+//        return this.checkTheFrameData(srcAddr, inputFrameData, 6);
+//    }// loop back일 경우 true, 다른 곳에서 온 frame : false
 	
 	public byte[] RemoveEthernetHeader(byte[] input, int length) {
 		byte[] cpyInput = new byte[length - 14];

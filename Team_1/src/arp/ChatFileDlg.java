@@ -79,6 +79,7 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 	InetAddress myIPAddress = null;
 	private byte[] targetIPAddress = new byte[4];
 	private JTable Table_PARP_Entry;
+	String inputARPIP ="";	//for ARP
 
 	public static void main(String[] args) {
 		m_LayerMgr.AddLayer(new NILayer("NI"));
@@ -98,7 +99,7 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 	DefaultTableModel dtm_ARP;
 	DefaultTableModel dtm_PARP;
 	String myMac;
-	byte[] myMacByte = new byte[6];
+	public byte[] myMacByte = new byte[6];
 	
 	public void setValueOfDTM_ARP(Object aValue, int row, int col) {
 		this.dtm_ARP.setValueAt(aValue, row, col);
@@ -148,6 +149,7 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		
 		////주소 초기화~~~~~~
 		((ARPLayer) m_LayerMgr.GetLayer("ARP")).SetSrcMac(getLocalMacAddress());
+		((EthernetLayer) m_LayerMgr.GetLayer("Ethernet")).SetEnetSrcAddress(getLocalMacAddress());;
 		
 		try {
 			((ARPLayer) m_LayerMgr.GetLayer("ARP")).SetSrcIp(InetToByte(InetAddress.getLocalHost()));
@@ -175,7 +177,7 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		String header_ARP_Cache[] = { "IP주소", "MAC주소", "완료 여부" };
 		String contents_ARP_Cache[][] = {
 
-//				{"123.123.123.123", "AA-BB-CC-11-22-33", "complete"},
+//				{"123.123.123.123", "AA-BB-CC-11-22-33", "complete"},1
 //				{"234", "zxc", "n"}
 		};
 
@@ -183,7 +185,7 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		String contents_PARP_Entry[][] = {
 
 //				{"HostA", "123.123.123.123", "AA-BB-CC-11-22-33"},
-//				{"234", "zxc", "n"}
+//				{"abc", "1.2.3.5", "a-b-c-d-e-f"}
 		};
 
 		dtm_ARP = new DefaultTableModel(contents_ARP_Cache, header_ARP_Cache);
@@ -255,6 +257,24 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		lbldst.setBounds(383, 182, 170, 20);
 		pane.add(lbldst);
 
+        NILayer tempNI = (NILayer) m_LayerMgr.GetLayer("NI");
+        if (tempNI != null) {
+            for (int indexOfPcapList = 0; indexOfPcapList < tempNI.m_pAdapterList.size(); indexOfPcapList += 1) {
+                final PcapIf inputPcapIf = tempNI.m_pAdapterList.get(indexOfPcapList);//NILayer의 List를 가져옴
+                byte[] macAdress = null;//객체 지정
+                try {
+                    macAdress = inputPcapIf.getHardwareAddress();
+                } catch (IOException e) {
+                    System.out.println("Address error is happen");
+                }//에러 표출
+                if (macAdress == null) {
+                    continue;
+                }
+            }//해당 ArrayList에 Mac주소 포트번호 이름, byte배열, Mac주소 String으로 변환한 값, NILayer의 adapterNumber를 저장해 준다.
+        }		
+//      tempNI.
+//      this.storageOfMacList.add(new MacAndName(macAdress, inputPcapIf.getDescription(), this.macByteToString(macAdress), indexOfPcapList));
+		
 		Setting_Button = new JButton("Setting");// setting
 		Setting_Button.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -300,6 +320,19 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 					}
 					System.out.println("IP of my system is := " + myIPAddress.getHostAddress()); // Just for debugging
 					ChattingArea.append("IP of my system is := " + myIPAddress.getHostAddress() + "\n"); // Show host
+					System.out.println("IP of my system is := " + myIPAddress.getHostAddress()); // Just for debugging
+					System.out.print("MACToByte of my system is := "); // Just for debugging
+					for (int i = 0; i<6; i++){
+						System.out.print(myMacByte[i]+ " ");
+					}
+					
+					ChattingArea.append("IP of my system is := " + myIPAddress.getHostAddress() + "\n"); // Show host
+					for(int i=0; i<6; ++i) {
+						if(i != 5)
+							ChattingArea.append(myMacByte[i] + "-");
+						else
+							ChattingArea.append(myMacByte[i] + "\n");
+					}// IP.
 																											// IP.
 
 				}
@@ -333,21 +366,25 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		Chat_send_Button = new JButton("Send");
 		Chat_send_Button.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				if (Setting_Button.getText() == "Reset") {
+				if (Setting_Button.getText() == "Reset" ) {
 					String input = ChattingWrite.getText();
+					if (input.equals("")){
+						JOptionPane.showMessageDialog(null, "채팅을 입력하세요.");						
+					}
+					else{
+						ChattingArea.append("[SEND] : " + input + "\n");
 
-					ChattingArea.append("[SEND] : " + input + "\n");
+						byte[] type = new byte[2];
+						type[0] = 0x08;
+						type[1] = 0x20;
+						// ((EthernetLayer) m_LayerMgr.GetLayer("Ethernet")).SetEnetType(type);
 
-					byte[] type = new byte[2];
-					type[0] = 0x08;
-					type[1] = 0x20;
-					// ((EthernetLayer) m_LayerMgr.GetLayer("Ethernet")).SetEnetType(type);
-
-					byte[] bytes = input.getBytes();
-					m_LayerMgr.GetLayer("Chat").Send(bytes, bytes.length);
-					// p_UnderLayer.Send(bytes, bytes.length);
-					
-					ChattingWrite.setText("");
+						byte[] bytes = input.getBytes();
+						m_LayerMgr.GetLayer("Chat").Send(bytes, bytes.length);
+						// p_UnderLayer.Send(bytes, bytes.length);
+						
+						ChattingWrite.setText("");						
+					}
 				} else {
 					JOptionPane.showMessageDialog(null, "주소 설정 오류");
 				}
@@ -425,7 +462,7 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		HwAddress_send_Button = new JButton("HW Send");
 		HwAddress_send_Button.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				String pattern = "[0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0 -9a-fA-F]{2}[-:][0-9a-fA-F]{2}";	// MAC address pattern
+				String pattern = "[0-9a-fA-F]{2}[-][0-9a-fA-F]{2}[-][0-9a-fA-F]{2}[-][0-9a-fA-F]{2}[-][0 -9a-fA-F]{2}[-][0-9a-fA-F]{2}";	// MAC address pattern
 				String inputMAC = hwAddress.getText();
 
 				if (Pattern.matches(pattern, inputMAC)) { // If inputed MAC is valid pattern, continue
@@ -492,13 +529,13 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		ARP_Send_Button.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				String pattern = "((\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])([.](?!$)|$)){4}"; // IP address pattern
-				String inputIP = ARPIpAddress.getText();
+				inputARPIP = ARPIpAddress.getText();
 				String defaultMAC = "????????????";
 				String isComplete = "incomplete";
 
-				if (Pattern.matches(pattern, inputIP)) { // If inputed IP is valid pattern, continue
+				if (Pattern.matches(pattern, inputARPIP)) { // If inputed IP is valid pattern, continue
 					String inputString[] = new String[3]; // Set a string array for the row to be inputed.
-					inputString[0] = inputIP;
+					inputString[0] = inputARPIP;
 					inputString[1] = defaultMAC;
 					inputString[2] = isComplete;
 
@@ -506,7 +543,7 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 
 					byte[] bytes = new byte[4];
 
-					String[] ipString = inputIP.split("\\."); // Split the string array by "\\."
+					String[] ipString = inputARPIP.split("\\."); // Split the string array by "\\."
 					for (int i = 0; i < 4; i++) {
 						bytes[i] = (byte) Integer.parseInt(ipString[i], 16); // Cast the integers to byte
 					}
@@ -516,7 +553,6 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 				} else {
 					JOptionPane.showMessageDialog(null, "유효하지 않은 IP 주소");
 				}
-
 				ARPIpAddress.setText("");
 			}
 		});
@@ -688,6 +724,8 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		this.targetIPAddress = targetIPAddress;
 	}	
 	
-
+	public String getInputARPIP(){
+		return inputARPIP;
+	}
 	
 }
