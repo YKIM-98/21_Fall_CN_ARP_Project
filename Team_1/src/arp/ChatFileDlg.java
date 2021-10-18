@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
@@ -97,7 +98,7 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 	DefaultTableModel dtm_ARP;
 	DefaultTableModel dtm_PARP;
 	String myMac;
-	byte[] myMacByte;
+	byte[] myMacByte = new byte[6];
 	
 	public void setValueOfDTM_ARP(Object aValue, int row, int col) {
 		this.dtm_ARP.setValueAt(aValue, row, col);
@@ -131,19 +132,23 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		return this.dtm_PARP.getColumnCount();
 	}
 	
+	public byte[] getLocalMacAddress() {
+	      byte[] mac = null;
+	      try {
+	         InetAddress ip = InetAddress.getLocalHost();
+	         NetworkInterface network = NetworkInterface.getByInetAddress(ip);
+	         mac = network.getHardwareAddress();
+	      } catch (Exception e) {
+	         e.printStackTrace();
+	      }
+	      return mac;
+	}
 	
 	public ChatFileDlg(String pName) {
 		
 		////주소 초기화~~~~~~
-		byte[] temp = null;
-		try {
-			temp = ((NILayer) m_LayerMgr.GetLayer("NI")).GetAdapterObject(0).getHardwareAddress();
-		} catch (IOException e2) {
-			// TODO Auto-generated catch block
-			e2.printStackTrace();
-		}
+		((ARPLayer) m_LayerMgr.GetLayer("ARP")).SetSrcMac(getLocalMacAddress());
 		
-		((ARPLayer) m_LayerMgr.GetLayer("ARP")).SetSrcMac(temp);
 		try {
 			((ARPLayer) m_LayerMgr.GetLayer("ARP")).SetSrcIp(InetToByte(InetAddress.getLocalHost()));
 		} catch (UnknownHostException e1) {

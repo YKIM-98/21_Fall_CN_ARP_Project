@@ -96,7 +96,8 @@ public class ARPLayer implements BaseLayer {
 		byte[] src_mac_address = Arrays.copyOfRange(input, 8, 14);
 		byte[] src_ip_address = Arrays.copyOfRange(input, 14, 18);
 		byte[] dst_ip_address = Arrays.copyOfRange(input, 24, 28);
-		ChatFileDlg dlg = ((ChatFileDlg) this.GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0));
+		
+		ChatFileDlg dlg = ((ChatFileDlg) this.GetUnderLayer().GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0));
 		byte[] myIP = dlg.getMyIPAddress().getAddress(); // No intelligence copy
 
 		if (opcode[0] == 0x00 && opcode[1] == 0x01) { // if ARP request
