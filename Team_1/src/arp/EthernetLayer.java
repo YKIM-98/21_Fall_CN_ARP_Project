@@ -61,17 +61,34 @@ public class EthernetLayer implements BaseLayer {
 
 	public boolean Send(byte[] input, int length) {
 		int opCode = byte2ToInt(input[6], input[7]);
-
+		ChatFileDlg dlg = ((ChatFileDlg) this.GetUnderLayer().GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0).GetUpperLayer(0));
+		
+				
 		if (opCode == 1) {// ARP request
-			SetEnetDstAddress(new byte[] { -1, -1, -1, -1, -1, -1 });
+			SetEnetDstAddress(new byte[] { (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff});
 			SetEnetSrcAddress(new byte[] { input[8], input[9], input[10], input[11], input[12], input[13] });
 			SetEnetType(new byte[] { 0x08, 0x06 });
-		} else if (opCode == 2) {// ARP reply
+		} 
+		
+		else if (opCode == 2) {// ARP reply
 			SetEnetDstAddress(new byte[] { input[18], input[19], input[20], input[21], input[22], input[23] });
 			SetEnetSrcAddress(new byte[] { input[8], input[9], input[10], input[11], input[12], input[13] });
 			SetEnetType(new byte[] { 0x08, 0x06 });
 		}
 
+		//	CHAT OF FILE
+		//	input[12] : 0x08
+//		else if(opCode == 0/*input[13] == (byte) 0x00*/) {
+//			if(chat) {
+//				
+//			}
+//			else {
+//				
+//			}
+//		}
+		
+		m_sHeader.enet_srcaddr.addr = dlg.myMacByte;
+		
 		byte[] bytes = ObjToByte(m_sHeader, input, length);
 		this.GetUnderLayer().Send(bytes, length + 14);
 
@@ -80,25 +97,21 @@ public class EthernetLayer implements BaseLayer {
 
 	// not complete
 	public boolean Receive(byte[] input) {
-
-		int frameType = byte2ToInt(input[12], input[13]);
-
-		if (!isMyFrame(input)) {
-			return false;
-		}
-
-		if (frameType == 0x0806) {//ARP / IP 를 구별할듯 ~~ GetUpperLayer(0 ?? 1??)확인 필요
-			input = RemoveEthernetHeader(input, input.length);
-			GetUpperLayer(1).Receive(input);
-			return true;
-		} else if (frameType == 0x0800) {
-			input = RemoveEthernetHeader(input, input.length);
-			GetUpperLayer(0).Receive(input);
-			return true;
-		}
-
-		return true;
-	}
+	      int frameType = byte2ToInt(input[12], input[13]);
+	      if (isMyFrame(input) || !isMyAddr(input) || !isBroadcast(input)) {//Frame 폐기
+	         return false;
+	      }
+	      if (frameType == 0x0806) {//상위 ARP로 전송
+	         input = RemoveEthernetHeader(input, input.length);
+	         GetUpperLayer(1).Receive(input);
+	         return true;
+	      } else if (frameType == 0x0800) {//상위 IP로 전송
+	         input = RemoveEthernetHeader(input, input.length);
+	         GetUpperLayer(0).Receive(input);
+	         return true;
+	      }
+	      return true;
+	   }
 	
 	public byte[] RemoveEthernetHeader(byte[] input, int length) {
 		byte[] cpyInput = new byte[length - 14];
@@ -161,12 +174,12 @@ public class EthernetLayer implements BaseLayer {
 		pUULayer.SetUnderLayer(this);
 	}
 	
-	private boolean isBroadcast(byte[] bytes) {
-		for (int i = 0; i < 6; i++)
-			if (bytes[i] != (byte) 0xff)
-				return false;
-		return (bytes[12] == (byte) 0xff && bytes[13] == (byte) 0xff);
-	}
+	private boolean isBroadcast(byte[] bytes) {//dstMac이 ffff~~~일 때
+	      for (int i = 0; i < 6; i++)
+	         if (bytes[i] != (byte) 0xff)
+	            return false;
+	      return true;
+	   }
 	
 	private boolean isMyFrame(byte[] input) {
 		for (int i = 0; i < 6; i++)

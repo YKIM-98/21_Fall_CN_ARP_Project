@@ -175,8 +175,8 @@ public class ChatFileDlg extends JFrame implements BaseLayer {
 		String header_ARP_Cache[] = { "IP주소", "MAC주소", "완료 여부" };
 		String contents_ARP_Cache[][] = {
 
-				{"123.123.123.123", "AA-BB-CC-11-22-33", "complete"},
-				{"234", "zxc", "n"}
+//				{"123.123.123.123", "AA-BB-CC-11-22-33", "complete"},
+//				{"234", "zxc", "n"}
 		};
 
 		String header_PARP_Entry[] = { "Device", "IP_주소", "MAC_주소" };
